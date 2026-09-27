@@ -58,6 +58,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
+// AutoScan
+builder.Services.Configure<AutoScanOptions>(
+    builder.Configuration.GetSection(AutoScanOptions.SectionName));
+builder.Services.AddHostedService<LibraryAutoScanService>();
+
 var app = builder.Build();
 
 // Seed local peer (создаётся один раз при старте)
@@ -65,6 +70,8 @@ var peerName = builder.Configuration["Resonanse:PeerName"];
 if (string.IsNullOrWhiteSpace(peerName))
     peerName = DefaultPaths.GetDefaultPeerName();
 await PeerSeeder.EnsureLocalPeerAsync(app.Services, peerName);
+
+
 
 if (app.Environment.IsDevelopment())
 {

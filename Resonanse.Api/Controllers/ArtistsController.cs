@@ -9,10 +9,12 @@ namespace Resonanse.Api.Controllers;
 public class ArtistsController : ControllerBase
 {
     private readonly ILibraryQueryService _query;
+    private readonly ILibraryEditService _edit;
 
-    public ArtistsController(ILibraryQueryService query)
+    public ArtistsController(ILibraryQueryService query, ILibraryEditService edit)
     {
         _query = query;
+        _edit = edit;
     }
 
     [HttpGet]
@@ -29,5 +31,19 @@ public class ArtistsController : ControllerBase
     {
         var artist = await _query.GetArtistAsync(id, ct);
         return artist is null ? NotFound() : Ok(artist);
+    }
+
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<ArtistDto>> Patch(Guid id, [FromBody] UpdateArtistRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var updated = await _edit.UpdateArtistAsync(id, request, ct);
+            return updated is null ? NotFound() : Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }

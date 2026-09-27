@@ -10,6 +10,7 @@ public static class DependencyInjection
         services.AddScoped<ILibraryScanner, LibraryScanner>();
         services.AddScoped<ILibraryQueryService, LibraryQueryService>();
         services.AddScoped<IStreamService, StreamService>();
+        services.AddScoped<ILibraryEditService, LibraryEditService>();
         return services;
     }
 }

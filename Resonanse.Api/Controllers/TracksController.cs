@@ -9,10 +9,12 @@ namespace Resonanse.Api.Controllers;
 public class TracksController : ControllerBase
 {
     private readonly ILibraryQueryService _query;
+    private readonly ILibraryEditService _edit;
 
-    public TracksController(ILibraryQueryService query)
+    public TracksController(ILibraryQueryService query, ILibraryEditService edit)
     {
         _query = query;
+        _edit = edit;
     }
 
     [HttpGet]
@@ -30,5 +32,22 @@ public class TracksController : ControllerBase
     {
         var track = await _query.GetTrackAsync(id, ct);
         return track is null ? NotFound() : Ok(track);
+    }
+
+    /// <summary>
+    /// Редактирование метаданных трека. Поля, которые не переданы (или null) - не меняются.
+    /// </summary>
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<TrackDto>> Patch(Guid id, [FromBody] UpdateTrackRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var updated = await _edit.UpdateTrackAsync(id, request, ct);
+            return updated is null ? NotFound() : Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }
