@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Resonanse.Application.Abstractions;
 using Resonanse.Domain.Entities;
 
 namespace Resonanse.Infrastructure.Persistence;
 
-public class ResonanseDbContext : DbContext
+public class ResonanseDbContext : DbContext, IResonanseDbContext
 {
     public ResonanseDbContext(DbContextOptions<ResonanseDbContext> options)
         : base(options)

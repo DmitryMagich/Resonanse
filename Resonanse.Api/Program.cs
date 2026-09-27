@@ -1,23 +1,24 @@
-using Microsoft.EntityFrameworkCore;
+using Resonanse.Api.Startup;
+using Resonanse.Application;
 using Resonanse.Infrastructure;
-using Resonanse.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Регистрация DbContext
-builder.Services.AddDbContext<ResonanseDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("ResonanseDb")));
-
-// Add services to the container.
 builder.Services.AddControllers();
-
-// Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Seed local peer
+var peerName = builder.Configuration["Resonanse:PeerName"];
+if (string.IsNullOrWhiteSpace(peerName))
+    peerName = DefaultPaths.GetDefaultPeerName();
+await PeerSeeder.EnsureLocalPeerAsync(app.Services, peerName);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -25,9 +26,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
