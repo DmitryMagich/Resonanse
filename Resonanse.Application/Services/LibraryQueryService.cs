@@ -22,7 +22,7 @@ public class LibraryQueryService : ILibraryQueryService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = search.Trim().ToLower();
+            var s = search.Trim().ToLowerInvariant();
             q = q.Where(t => t.Title.ToLower().Contains(s));
         }
 
@@ -228,7 +228,7 @@ public class LibraryQueryService : ILibraryQueryService
         if (string.IsNullOrWhiteSpace(query)) return result;
 
         limit = Math.Clamp(limit, 1, 100);
-        var s = query.Trim().ToLower();
+        var s = query.Trim().ToLowerInvariant();
 
         result.Tracks = await _db.Tracks
             .AsNoTracking()
