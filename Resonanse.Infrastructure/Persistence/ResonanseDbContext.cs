@@ -16,6 +16,9 @@ public class ResonanseDbContext : DbContext, IResonanseDbContext
     public DbSet<Album> Albums => Set<Album>();
     public DbSet<Track> Tracks => Set<Track>();
     public DbSet<TrackFile> TrackFiles => Set<TrackFile>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Invite> Invites => Set<Invite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

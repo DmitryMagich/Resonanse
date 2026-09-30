@@ -10,6 +10,9 @@ public interface IResonanseDbContext
     DbSet<Album> Albums { get; }
     DbSet<Track> Tracks { get; }
     DbSet<TrackFile> TrackFiles { get; }
+    DbSet<User> Users { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<Invite> Invites { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
