@@ -11,6 +11,8 @@ public static class DependencyInjection
         services.AddScoped<ILibraryQueryService, LibraryQueryService>();
         services.AddScoped<IStreamService, StreamService>();
         services.AddScoped<ILibraryEditService, LibraryEditService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IInviteService, InviteService>();
         return services;
     }
 }
