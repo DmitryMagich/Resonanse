@@ -4,13 +4,53 @@
     container_name: resonanse-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: resonanse
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-resonanse}
     ports:
-      - "5432:5432" 
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - resonanse-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-resonanse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Resonanse.Api/Dockerfile
+    container_name: resonanse-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-5173}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__ResonanseDb: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-resonanse};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      Resonanse__PeerName: ${PEER_NAME:-resonanse-server}
+      Resonanse__Admin__Username: ${ADMIN_USERNAME:-admin}
+      Resonanse__Admin__Password: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      Resonanse__Jwt__Issuer: "Resonanse"
+      Resonanse__Jwt__Audience: "Resonanse.Clients"
+      Resonanse__Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}
+      Resonanse__Jwt__AccessTokenMinutes: "60"
+      Resonanse__AutoScan__Enabled: "true"
+      Resonanse__AutoScan__ScanOnStartup: "true"
+      Resonanse__AutoScan__IntervalMinutes: "30"
+      Resonanse__LibraryPath: "/music"
+    volumes:
+      - ${MUSIC_PATH:-./music}:/music:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 volumes:
   resonanse-pgdata:

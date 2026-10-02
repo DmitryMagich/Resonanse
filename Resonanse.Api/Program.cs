@@ -1,12 +1,15 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Resonanse.Api.Startup;
 using Resonanse.Application;
 using Resonanse.Infrastructure;
 using Resonanse.Infrastructure.Auth;
+using Resonanse.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,25 +50,30 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // JWT options + auth
-var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
-
-if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || jwtOptions.SigningKey.Length < 32)
-    throw new InvalidOperationException(
-        "Resonanse:Jwt:SigningKey must be set in configuration (min 32 characters).");
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+// Конфигурируем JwtBearerOptions лениво через IOptions<JwtOptions>,
+// чтобы ключ валидации брался из того же источника, что и в JwtTokenService.
+builder.Services
+    .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((bearer, jwt) =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        var o = jwt.Value;
+
+        if (string.IsNullOrWhiteSpace(o.SigningKey) || o.SigningKey.Length < 32)
+            throw new InvalidOperationException(
+                "Resonanse:Jwt:SigningKey must be set in configuration (min 32 characters).");
+
+        bearer.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = jwtOptions.Issuer,
+            ValidIssuer = o.Issuer,
             ValidateAudience = true,
-            ValidAudience = jwtOptions.Audience,
+            ValidAudience = o.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(o.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
         };
@@ -83,6 +91,14 @@ builder.Services.Configure<AutoScanOptions>(
 builder.Services.AddHostedService<LibraryAutoScanService>();
 
 var app = builder.Build();
+
+// Apply migrations
+if (builder.Configuration.GetValue<bool>("Resonanse:ApplyMigrationsOnStartup", true))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ResonanseDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 // Seed local peer
 var peerName = builder.Configuration["Resonanse:PeerName"];
