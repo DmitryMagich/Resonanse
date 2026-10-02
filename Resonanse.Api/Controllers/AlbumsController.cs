@@ -21,10 +21,29 @@ public class AlbumsController : ControllerBase
     public async Task<ActionResult<PagedResult<AlbumDto>>> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null,
+        [FromQuery] AlbumSortField sortBy = AlbumSortField.Title,
+        [FromQuery] SortDirection sortDir = SortDirection.Asc,
         [FromQuery] Guid? artistId = null,
+        [FromQuery] int? yearFrom = null,
+        [FromQuery] int? yearTo = null,
+        [FromQuery] bool? hasCover = null,
         CancellationToken ct = default)
     {
-        return Ok(await _query.GetAlbumsAsync(page, pageSize, artistId, ct));
+        var query = new AlbumQuery
+        {
+            Page = page,
+            PageSize = pageSize,
+            Search = search,
+            SortBy = sortBy,
+            SortDir = sortDir,
+            ArtistId = artistId,
+            YearFrom = yearFrom,
+            YearTo = yearTo,
+            HasCover = hasCover
+        };
+
+        return Ok(await _query.GetAlbumsAsync(query, ct));
     }
 
     [HttpGet("{id:guid}")]

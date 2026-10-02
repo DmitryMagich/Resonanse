@@ -21,9 +21,21 @@ public class ArtistsController : ControllerBase
     public async Task<ActionResult<PagedResult<ArtistDto>>> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null,
+        [FromQuery] ArtistSortField sortBy = ArtistSortField.Name,
+        [FromQuery] SortDirection sortDir = SortDirection.Asc,
         CancellationToken ct = default)
     {
-        return Ok(await _query.GetArtistsAsync(page, pageSize, ct));
+        var query = new ArtistQuery
+        {
+            Page = page,
+            PageSize = pageSize,
+            Search = search,
+            SortBy = sortBy,
+            SortDir = sortDir
+        };
+
+        return Ok(await _query.GetArtistsAsync(query, ct));
     }
 
     [HttpGet("{id:guid}")]

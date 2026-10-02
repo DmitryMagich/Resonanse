@@ -1,3 +1,4 @@
+using Resonanse.Application.Dtos;
 using Resonanse.Application.Services;
 using Resonanse.Domain.Entities;
 using Resonanse.Domain.Enums;
@@ -9,6 +10,10 @@ namespace Resonanse.UnitTests.Application;
 
 public class LibraryQueryServiceTests
 {
+    // ============================================================
+    // TRACKS
+    // ============================================================
+
     [Fact]
     public async Task GetTracksAsync_ReturnsPagedResults()
     {
@@ -16,7 +21,7 @@ public class LibraryQueryServiceTests
         SeedManyTracks(db, 25);
         var service = new LibraryQueryService(db);
 
-        var result = await service.GetTracksAsync(page: 1, pageSize: 10, search: null);
+        var result = await service.GetTracksAsync(new TrackQuery { Page = 1, PageSize = 10 });
 
         Assert.Equal(10, result.Items.Count);
         Assert.Equal(25, result.TotalCount);
@@ -31,7 +36,7 @@ public class LibraryQueryServiceTests
         SeedManyTracks(db, 25);
         var service = new LibraryQueryService(db);
 
-        var result = await service.GetTracksAsync(page: 3, pageSize: 10, search: null);
+        var result = await service.GetTracksAsync(new TrackQuery { Page = 3, PageSize = 10 });
 
         Assert.Equal(5, result.Items.Count);
     }
@@ -43,7 +48,7 @@ public class LibraryQueryServiceTests
         SeedManyTracks(db, 10);
         var service = new LibraryQueryService(db);
 
-        var result = await service.GetTracksAsync(page: 1, pageSize: 100, search: "Track 1");
+        var result = await service.GetTracksAsync(new TrackQuery { Page = 1, PageSize = 100, Search = "Track 1" });
 
         Assert.Equal(2, result.TotalCount);
     }
@@ -73,6 +78,10 @@ public class LibraryQueryServiceTests
         Assert.Null(result);
     }
 
+    // ============================================================
+    // ALBUMS
+    // ============================================================
+
     [Fact]
     public async Task GetAlbumsAsync_FilterByArtistId()
     {
@@ -87,11 +96,15 @@ public class LibraryQueryServiceTests
 
         var service = new LibraryQueryService(db);
 
-        var result = await service.GetAlbumsAsync(page: 1, pageSize: 100, artistId: artist.Id);
+        var result = await service.GetAlbumsAsync(new AlbumQuery { Page = 1, PageSize = 100, ArtistId = artist.Id });
 
         Assert.Equal(1, result.TotalCount);
         Assert.Equal(artist.Id, result.Items[0].ArtistId);
     }
+
+    // ============================================================
+    // ARTISTS
+    // ============================================================
 
     [Fact]
     public async Task GetArtistsAsync_ReturnsCounts()
@@ -100,12 +113,16 @@ public class LibraryQueryServiceTests
         SeedBasic(db);
         var service = new LibraryQueryService(db);
 
-        var result = await service.GetArtistsAsync(page: 1, pageSize: 100);
+        var result = await service.GetArtistsAsync(new ArtistQuery { Page = 1, PageSize = 100 });
 
         Assert.Single(result.Items);
         Assert.Equal(1, result.Items[0].AlbumCount);
         Assert.Equal(1, result.Items[0].TrackCount);
     }
+
+    // ============================================================
+    // SEARCH
+    // ============================================================
 
     [Fact]
     public async Task SearchAsync_ReturnsMatches()
@@ -134,6 +151,10 @@ public class LibraryQueryServiceTests
         Assert.Empty(result.Albums);
         Assert.Empty(result.Artists);
     }
+
+    // ============================================================
+    // SEED HELPERS
+    // ============================================================
 
     private static (Artist artist, Album album, Track track) SeedBasic(ResonanseDbContext db)
     {
