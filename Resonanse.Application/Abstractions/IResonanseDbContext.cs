@@ -15,6 +15,7 @@ public interface IResonanseDbContext
     DbSet<Invite> Invites { get; }
     DbSet<InviteRequest> InviteRequests { get; }
     DbSet<ErrorLog> ErrorLogs { get; }
+    DbSet<ScanJob> ScanJobs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

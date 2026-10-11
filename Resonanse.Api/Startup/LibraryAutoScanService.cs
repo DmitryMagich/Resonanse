@@ -26,7 +26,7 @@ public class LibraryAutoScanService : BackgroundService
     {
         if (!_options.Enabled)
         {
-            _logger.LogInformation("AutoScan: disabled by config.");
+            _logger.LogInformation("AutoScan: disabled by config");
             return;
         }
 
@@ -36,15 +36,15 @@ public class LibraryAutoScanService : BackgroundService
             _logger.LogWarning("AutoScan: path does not exist — {Path}. Idle.", path);
             return;
         }
-        
+
         if (_options.ScanOnStartup)
         {
-            await SafeScanAsync(path, "startup", stoppingToken);
+            await EnqueueAsync(path, "startup", stoppingToken);
         }
-        
+
         if (_options.IntervalMinutes <= 0)
         {
-            _logger.LogInformation("AutoScan: interval disabled, only startup scan runs.");
+            _logger.LogInformation("AutoScan: interval disabled, only startup scan runs");
             return;
         }
 
@@ -57,42 +57,33 @@ public class LibraryAutoScanService : BackgroundService
         {
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                await SafeScanAsync(path, "scheduled", stoppingToken);
+                await EnqueueAsync(path, "scheduled", stoppingToken);
             }
         }
         catch (OperationCanceledException)
         {
+            // graceful shutdown
         }
     }
 
-    private async Task SafeScanAsync(string path, string reason, CancellationToken ct)
+    private async Task EnqueueAsync(string path, string trigger, CancellationToken ct)
     {
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var scanner = scope.ServiceProvider.GetRequiredService<ILibraryScanner>();
+            var scanJobs = scope.ServiceProvider.GetRequiredService<IScanJobService>();
 
-            _logger.LogInformation("AutoScan ({Reason}): starting for {Path}", reason, path);
-            var startedAt = DateTime.UtcNow;
-
-            var result = await scanner.ScanAsync(path, ct);
-
-            _logger.LogInformation(
-                "AutoScan ({Reason}): done in {Duration:F1}s — processed={Processed}, created={Created}, updated={Updated}, errors={Errors}",
-                reason,
-                (DateTime.UtcNow - startedAt).TotalSeconds,
-                result.FilesProcessed,
-                result.TracksCreated,
-                result.TracksUpdated,
-                result.Errors);
+            var job = await scanJobs.EnqueueAsync(path, trigger, userId: null, ct);
+            _logger.LogInformation("AutoScan ({Trigger}): enqueued job {JobId} for {Path}",
+                trigger, job.Id, path);
         }
-        catch (OperationCanceledException)
+        catch (InvalidOperationException ex)
         {
-            throw;
+            _logger.LogInformation("AutoScan ({Trigger}): skipped — {Reason}", trigger, ex.Message);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AutoScan ({Reason}): failed", reason);
+            _logger.LogError(ex, "AutoScan ({Trigger}): failed to enqueue", trigger);
         }
     }
 
@@ -105,6 +96,11 @@ public class LibraryAutoScanService : BackgroundService
         if (!string.IsNullOrWhiteSpace(libPath))
             return libPath!;
 
-        return DefaultPaths.GetMusicFolder();
+        var myMusic = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
+        if (!string.IsNullOrEmpty(myMusic) && Directory.Exists(myMusic))
+            return myMusic;
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(home, "Music");
     }
 }

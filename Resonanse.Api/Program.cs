@@ -1,4 +1,4 @@
-using System.Text;
+using System.Text;  
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -8,13 +8,15 @@ using Microsoft.OpenApi.Models;
 using Resonanse.Api.Middleware;
 using Resonanse.Api.Startup;
 using Resonanse.Application;
+using Resonanse.Application.Scanning;
 using Resonanse.Infrastructure;
 using Resonanse.Infrastructure.Auth;
 using Resonanse.Infrastructure.Logging;
+using Resonanse.Infrastructure.Scanning;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers + глобальный [Authorize]
+// Controllers + global [Authorize]
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add(new AuthorizeFilter());
@@ -31,7 +33,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Введи JWT access token."
+        Description = "Enter JWT access token."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -85,15 +87,13 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
 // Error log channel + DbLogger
-builder.Services.AddSingleton<ErrorLogChannel>();
+var errorLogChannel = new ErrorLogChannel();
+builder.Services.AddSingleton(errorLogChannel);
 
 var dbMinLevel = Enum.TryParse<LogLevel>(
     builder.Configuration["Logging:Db:MinLevel"], true, out var lvl)
     ? lvl
     : LogLevel.Warning;
-
-var errorLogChannel = new ErrorLogChannel();
-builder.Services.AddSingleton(errorLogChannel);
 
 builder.Logging.AddProvider(new DbLoggerProvider(
     channel: errorLogChannel,
@@ -116,6 +116,10 @@ builder.Services.AddSingleton<IHostedService>(sp =>
         sp.GetRequiredService<ILogger<ErrorLogCleanupService>>(),
         retentionDays));
 
+// Scanning
+builder.Services.AddSingleton<ScanQueue>();
+builder.Services.AddHostedService<ScanWorkerService>();
+
 // AutoScan
 builder.Services.Configure<AutoScanOptions>(
     builder.Configuration.GetSection(AutoScanOptions.SectionName));
@@ -123,7 +127,7 @@ builder.Services.AddHostedService<LibraryAutoScanService>();
 
 var app = builder.Build();
 
-// Миграции
+// Migrations
 if (builder.Configuration.GetValue<bool>("Resonanse:ApplyMigrationsOnStartup", true))
 {
     using var scope = app.Services.CreateScope();

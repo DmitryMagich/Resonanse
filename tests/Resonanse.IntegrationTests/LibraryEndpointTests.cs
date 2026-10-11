@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Resonanse.Application.Services;
+using Resonanse.Application.Dtos;
 
 namespace Resonanse.IntegrationTests;
 
@@ -10,17 +10,17 @@ public class LibraryEndpointTests : IntegrationTestBase
     public LibraryEndpointTests(CustomWebApplicationFactory factory) : base(factory) { }
 
     [Fact]
-    public async Task Scan_NonexistentPath_Returns400()
+    public async Task Scan_NoAuth_Returns401()
     {
-        await AuthorizeAsync();
+        ClearAuthorization();
 
-        var response = await Client.PostAsync("/api/library/scan?path=/nonexistent/folder/xyz", null);
+        var response = await Client.PostAsync("/api/library/scan", null);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
-    public async Task Scan_EmptyTempFolder_ReturnsZeroCounts()
+    public async Task Scan_EnqueuesJob_ReturnsAccepted()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"resonanse-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -29,13 +29,16 @@ public class LibraryEndpointTests : IntegrationTestBase
         {
             await AuthorizeAsync();
 
-            var response = await Client.PostAsync($"/api/library/scan?path={Uri.EscapeDataString(tempDir)}", null);
+            var response = await Client.PostAsync(
+                $"/api/library/scan?path={Uri.EscapeDataString(tempDir)}", null);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var result = await response.Content.ReadFromJsonAsync<ScanResult>();
-            Assert.NotNull(result);
-            Assert.Equal(0, result!.FilesProcessed);
-            Assert.Equal(0, result.Errors);
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+
+            var job = await response.Content.ReadFromJsonAsync<ScanJobDto>();
+            Assert.NotNull(job);
+            Assert.NotEqual(Guid.Empty, job!.Id);
+            Assert.Equal("manual", job.Trigger);
+            Assert.Equal(tempDir, job.Path);
         }
         finally
         {
@@ -44,10 +47,35 @@ public class LibraryEndpointTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Scan_NoAuth_Returns401()
+    public async Task Scan_NonexistentPath_ReturnsConflict()
     {
-        var response = await Client.PostAsync("/api/library/scan", null);
+        await AuthorizeAsync();
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var response = await Client.PostAsync(
+            "/api/library/scan?path=/nonexistent/folder/xyz-123", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ScanStatus_NonexistentJob_Returns404()
+    {
+        await AuthorizeAsync();
+
+        var response = await Client.GetAsync($"/api/library/scan/status/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ScanHistory_WithAuth_Returns200()
+    {
+        await AuthorizeAsync();
+
+        var response = await Client.GetAsync("/api/library/scan/history?limit=5");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var history = await response.Content.ReadFromJsonAsync<List<ScanJobDto>>();
+        Assert.NotNull(history);
     }
 }

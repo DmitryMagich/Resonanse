@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IPublicAlbumService, PublicAlbumService>();
         services.AddScoped<ICoverService, CoverService>();
         services.AddScoped<IErrorLogService, ErrorLogService>();
+        services.AddScoped<IScanJobService, ScanJobService>();
         return services;
     }
 }

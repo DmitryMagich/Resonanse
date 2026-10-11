@@ -1,55 +1,78 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Resonanse.Api.Startup;
+using Resonanse.Application.Abstractions;
+using Resonanse.Application.Dtos;
 using Resonanse.Application.Services;
 
 namespace Resonanse.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/library")]
+[Authorize(Roles = "Admin")]
 public class LibraryController : ControllerBase
 {
-    private readonly ILibraryScanner _scanner;
-    private readonly IConfiguration _configuration;
+    private readonly IScanJobService _scanJobs;
+    private readonly ICurrentUser _currentUser;
     private readonly ILogger<LibraryController> _logger;
 
     public LibraryController(
-        ILibraryScanner scanner,
-        IConfiguration configuration,
+        IScanJobService scanJobs,
+        ICurrentUser currentUser,
         ILogger<LibraryController> logger)
     {
-        _scanner = scanner;
-        _configuration = configuration;
+        _scanJobs = scanJobs;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
     /// <summary>
-    /// Сканирует папку с музыкой.
-    /// Если path не указан - берётся Resonanse:LibraryPath или ~/Music.
+    /// Enqueues a background scan job. Returns immediately with a job id.
     /// </summary>
     [HttpPost("scan")]
-    public async Task<ActionResult<ScanResult>> Scan(
+    public async Task<ActionResult<ScanJobDto>> Scan(
         [FromQuery] string? path,
         CancellationToken ct)
     {
-        var scanPath = path;
-        if (string.IsNullOrWhiteSpace(scanPath))
-            scanPath = _configuration["Resonanse:LibraryPath"];
-        if (string.IsNullOrWhiteSpace(scanPath))
-            scanPath = DefaultPaths.GetMusicFolder();
+        try
+        {
+            var job = await _scanJobs.EnqueueAsync(path, trigger: "manual", _currentUser.UserId, ct);
+            _logger.LogInformation("Manual scan enqueued: jobId={JobId}, path={Path}", job.Id, job.Path);
+            return Accepted(job);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
 
-        if (!Directory.Exists(scanPath))
-            return BadRequest(new { error = $"Directory not found: {scanPath}" });
+    /// <summary>
+    /// Returns the status of a specific scan job.
+    /// </summary>
+    [HttpGet("scan/status/{jobId:guid}")]
+    public async Task<ActionResult<ScanJobDto>> GetStatus(Guid jobId, CancellationToken ct)
+    {
+        var job = await _scanJobs.GetByIdAsync(jobId, ct);
+        return job is null ? NotFound() : Ok(job);
+    }
 
-        _logger.LogInformation("Starting scan of {Path}", scanPath);
+    /// <summary>
+    /// Returns the most recent scan job (any status).
+    /// </summary>
+    [HttpGet("scan/latest")]
+    public async Task<ActionResult<ScanJobDto>> GetLatest(CancellationToken ct)
+    {
+        var job = await _scanJobs.GetLatestAsync(ct);
+        return job is null ? NotFound() : Ok(job);
+    }
 
-        var result = await _scanner.ScanAsync(scanPath, ct);
-
-        _logger.LogInformation(
-            "Scan done. Processed: {Processed}, Created: {Created}, Errors: {Errors}",
-            result.FilesProcessed, result.TracksCreated, result.Errors);
-
-        return Ok(result);
+    /// <summary>
+    /// Returns scan history, newest first.
+    /// </summary>
+    [HttpGet("scan/history")]
+    public async Task<ActionResult<List<ScanJobDto>>> GetHistory(
+        [FromQuery] int limit = 20,
+        CancellationToken ct = default)
+    {
+        return Ok(await _scanJobs.GetHistoryAsync(limit, ct));
     }
 }
