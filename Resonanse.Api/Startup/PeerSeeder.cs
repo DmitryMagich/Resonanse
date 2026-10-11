@@ -6,20 +6,39 @@ namespace Resonanse.Api.Startup;
 
 public static class PeerSeeder
 {
-    public static async Task EnsureLocalPeerAsync(IServiceProvider services, string peerName)
+    /// <summary>
+    /// Ensures a local peer exists. Promotes it to local if needed.
+    /// Only one peer can be local at a time.
+    /// </summary>
+    public static async Task EnsureLocalPeerAsync(IServiceProvider services, string peerName, bool isBootstrap)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ResonanseDbContext>();
 
-        var exists = await db.Peers.AnyAsync(p => p.Name == peerName);
-        if (exists) return;
+        // Demote any existing local peers
+        var locals = await db.Peers.Where(p => p.IsLocal).ToListAsync();
+        foreach (var p in locals)
+            p.IsLocal = false;
 
-        db.Peers.Add(new Peer
+        var existing = await db.Peers.FirstOrDefaultAsync(p => p.Name == peerName);
+        if (existing is not null)
         {
-            Name = peerName,
-            IsOnline = true,
-            LastSeenAt = DateTime.UtcNow
-        });
+            existing.IsLocal = true;
+            existing.IsBootstrap = isBootstrap;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            db.Peers.Add(new Peer
+            {
+                Name = peerName,
+                IsLocal = true,
+                IsBootstrap = isBootstrap,
+                IsOnline = true,
+                LastSeenAt = DateTime.UtcNow
+            });
+        }
+
         await db.SaveChangesAsync();
     }
 }

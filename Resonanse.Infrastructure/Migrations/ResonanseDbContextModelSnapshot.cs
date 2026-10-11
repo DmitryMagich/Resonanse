@@ -267,6 +267,16 @@ namespace Resonanse.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsBootstrap")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsLocal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsOnline")
                         .HasColumnType("boolean");
 
@@ -278,6 +288,10 @@ namespace Resonanse.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("PeerId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("PublicKey")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -286,6 +300,14 @@ namespace Resonanse.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsLocal")
+                        .IsUnique()
+                        .HasFilter("\"IsLocal\" = TRUE");
+
+                    b.HasIndex("PeerId")
+                        .IsUnique()
+                        .HasFilter("\"PeerId\" IS NOT NULL");
 
                     b.HasIndex("PublicKey")
                         .IsUnique()

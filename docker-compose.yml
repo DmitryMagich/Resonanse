@@ -29,6 +29,7 @@
     ports:
       - "${API_PORT:-5173}:8080"
     environment:
+      Resonanse__IsBootstrap: "true"
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__ResonanseDb: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-resonanse};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"

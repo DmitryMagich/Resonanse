@@ -139,7 +139,9 @@ if (builder.Configuration.GetValue<bool>("Resonanse:ApplyMigrationsOnStartup", t
 var peerName = builder.Configuration["Resonanse:PeerName"];
 if (string.IsNullOrWhiteSpace(peerName))
     peerName = DefaultPaths.GetDefaultPeerName();
-await PeerSeeder.EnsureLocalPeerAsync(app.Services, peerName);
+
+var isBootstrap = builder.Configuration.GetValue<bool>("Resonanse:IsBootstrap");
+await PeerSeeder.EnsureLocalPeerAsync(app.Services, peerName, isBootstrap);
 
 // Seed admin
 var adminUsername = builder.Configuration["Resonanse:Admin:Username"];
