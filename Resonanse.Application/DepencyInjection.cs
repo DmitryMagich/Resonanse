@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IInviteRequestService, InviteRequestService>();
         services.AddScoped<IPublicAlbumService, PublicAlbumService>();
         services.AddScoped<ICoverService, CoverService>();
+        services.AddScoped<IErrorLogService, ErrorLogService>();
         return services;
     }
 }

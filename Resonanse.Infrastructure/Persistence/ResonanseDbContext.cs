@@ -20,6 +20,7 @@ public class ResonanseDbContext : DbContext, IResonanseDbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Invite> Invites => Set<Invite>();
     public DbSet<InviteRequest> InviteRequests => Set<InviteRequest>();
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

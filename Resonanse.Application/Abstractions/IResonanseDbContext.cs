@@ -14,6 +14,7 @@ public interface IResonanseDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Invite> Invites { get; }
     DbSet<InviteRequest> InviteRequests { get; }
+    DbSet<ErrorLog> ErrorLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

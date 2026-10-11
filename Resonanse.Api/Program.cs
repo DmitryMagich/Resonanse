@@ -2,14 +2,15 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Resonanse.Api.Middleware;
 using Resonanse.Api.Startup;
 using Resonanse.Application;
 using Resonanse.Infrastructure;
 using Resonanse.Infrastructure.Auth;
-using Resonanse.Infrastructure.Persistence;
+using Resonanse.Infrastructure.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +31,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Введи JWT access token. Пример: <token> (без слова 'Bearer' — Swagger добавит сам)."
+        Description = "Введи JWT access token."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -49,16 +50,14 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// JWT options + auth
+// JWT
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer();
 
-// Конфигурируем JwtBearerOptions лениво через IOptions<JwtOptions>,
-// чтобы ключ валидации брался из того же источника, что и в JwtTokenService.
 builder.Services
     .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-    .Configure<IOptions<JwtOptions>>((bearer, jwt) =>
+    .Configure<Microsoft.Extensions.Options.IOptions<JwtOptions>>((bearer, jwt) =>
     {
         var o = jwt.Value;
 
@@ -85,6 +84,38 @@ builder.Services.AddAuthorization();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
+// Error log channel + DbLogger
+builder.Services.AddSingleton<ErrorLogChannel>();
+
+var dbMinLevel = Enum.TryParse<LogLevel>(
+    builder.Configuration["Logging:Db:MinLevel"], true, out var lvl)
+    ? lvl
+    : LogLevel.Warning;
+
+var errorLogChannel = new ErrorLogChannel();
+builder.Services.AddSingleton(errorLogChannel);
+
+builder.Logging.AddProvider(new DbLoggerProvider(
+    channel: errorLogChannel,
+    minLevel: dbMinLevel,
+    excludedPrefixes: new[]
+    {
+        "Microsoft.",
+        "System.",
+        "Resonanse.Infrastructure.Logging.ErrorLogWriterService",
+        "Resonanse.Infrastructure.Logging.ErrorLogCleanupService"
+    }));
+
+// BackgroundServices
+builder.Services.AddHostedService<ErrorLogWriterService>();
+
+var retentionDays = builder.Configuration.GetValue<int?>("Logging:Db:RetentionDays") ?? 30;
+builder.Services.AddSingleton<IHostedService>(sp =>
+    new ErrorLogCleanupService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<ILogger<ErrorLogCleanupService>>(),
+        retentionDays));
+
 // AutoScan
 builder.Services.Configure<AutoScanOptions>(
     builder.Configuration.GetSection(AutoScanOptions.SectionName));
@@ -92,11 +123,11 @@ builder.Services.AddHostedService<LibraryAutoScanService>();
 
 var app = builder.Build();
 
-// Apply migrations
+// Миграции
 if (builder.Configuration.GetValue<bool>("Resonanse:ApplyMigrationsOnStartup", true))
 {
     using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<ResonanseDbContext>();
+    var db = scope.ServiceProvider.GetRequiredService<Resonanse.Infrastructure.Persistence.ResonanseDbContext>();
     await db.Database.MigrateAsync();
 }
 
@@ -106,13 +137,16 @@ if (string.IsNullOrWhiteSpace(peerName))
     peerName = DefaultPaths.GetDefaultPeerName();
 await PeerSeeder.EnsureLocalPeerAsync(app.Services, peerName);
 
-// Seed admin (bootstrap) — только если нет ни одного user
+// Seed admin
 var adminUsername = builder.Configuration["Resonanse:Admin:Username"];
 var adminPassword = builder.Configuration["Resonanse:Admin:Password"];
 if (!string.IsNullOrWhiteSpace(adminUsername) && !string.IsNullOrWhiteSpace(adminPassword))
 {
     await UserSeeder.EnsureAdminAsync(app.Services, adminUsername, adminPassword);
 }
+
+// Exception logging
+app.UseMiddleware<ExceptionLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
