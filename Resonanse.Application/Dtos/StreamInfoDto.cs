@@ -3,6 +3,7 @@ namespace Resonanse.Application.Dtos;
 public class StreamInfoDto
 {
     public Guid TrackFileId { get; set; }
+    public Guid TrackId { get; set; }
     public string FilePath { get; set; } = string.Empty;
     public string ContentType { get; set; } = "application/octet-stream";
     public long FileSize { get; set; }

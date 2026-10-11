@@ -9,18 +9,15 @@ public class AlbumConfiguration : IEntityTypeConfiguration<Album>
     public void Configure(EntityTypeBuilder<Album> builder)
     {
         builder.ToTable("Albums");
-
         builder.HasKey(a => a.Id);
 
-        builder.Property(a => a.Title)
-            .IsRequired()
-            .HasMaxLength(300);
-
-        builder.Property(a => a.CoverPath)
-            .HasMaxLength(1000);
+        builder.Property(a => a.Title).IsRequired().HasMaxLength(300);
+        builder.Property(a => a.CoverPath).HasMaxLength(1000);
+        builder.Property(a => a.IsTestAlbum).HasDefaultValue(false).IsRequired();
 
         builder.HasIndex(a => a.Title);
         builder.HasIndex(a => a.ArtistId);
+        builder.HasIndex(a => a.IsTestAlbum);
 
         builder.HasMany(a => a.Tracks)
             .WithOne(t => t.Album)

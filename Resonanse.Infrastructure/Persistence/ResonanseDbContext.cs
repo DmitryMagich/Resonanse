@@ -19,6 +19,7 @@ public class ResonanseDbContext : DbContext, IResonanseDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Invite> Invites => Set<Invite>();
+    public DbSet<InviteRequest> InviteRequests => Set<InviteRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

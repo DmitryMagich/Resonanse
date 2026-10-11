@@ -16,17 +16,20 @@ public class LibraryScanner : ILibraryScanner
     private readonly IResonanseDbContext _db;
     private readonly IMetadataReader _metadataReader;
     private readonly IFileHasher _hasher;
+    private readonly ICoverService _coverService;
     private readonly HashSet<string> _excludedFolders;
 
     public LibraryScanner(
         IResonanseDbContext db,
         IMetadataReader metadataReader,
         IFileHasher hasher,
+        ICoverService coverService,
         IConfiguration configuration)
     {
         _db = db;
         _metadataReader = metadataReader;
         _hasher = hasher;
+        _coverService = coverService;
         _excludedFolders = configuration
             .GetSection("Resonanse:ExcludedFolders")
             .Get<string[]>()
@@ -135,6 +138,16 @@ public class LibraryScanner : ILibraryScanner
             existing.Format = meta.Format;
             existing.UpdatedAt = DateTime.UtcNow;
             result.TracksUpdated++;
+
+            // Обложка могла появиться с тех пор — проверим
+            var albumId = await _db.Tracks
+                .Where(t => t.Id == existing.TrackId)
+                .Select(t => t.AlbumId)
+                .FirstOrDefaultAsync(ct);
+
+            if (albumId != Guid.Empty)
+                await _coverService.EnsureCoverForAlbumAsync(albumId, filePath, ct);
+
             return;
         }
 
@@ -164,7 +177,10 @@ public class LibraryScanner : ILibraryScanner
             await _db.SaveChangesAsync(ct);
         }
 
-        // Fallback: если title пустой — используем имя файла
+        // Обложка — до создания трека, чтобы при повторных сканах не дёргать лишний раз
+        if (string.IsNullOrWhiteSpace(album.CoverPath))
+            await _coverService.EnsureCoverForAlbumAsync(album.Id, filePath, ct);
+
         var trackTitle = string.IsNullOrWhiteSpace(meta.Title)
             ? Path.GetFileNameWithoutExtension(filePath)
             : meta.Title;
@@ -172,7 +188,6 @@ public class LibraryScanner : ILibraryScanner
         var trackNumber = meta.TrackNumber ?? 0;
         var discNumber = meta.DiscNumber ?? 1;
 
-        // ВАЖНО: dedup-ключ теперь включает Title
         var track = await _db.Tracks
             .FirstOrDefaultAsync(t => t.AlbumId == album.Id
                                       && t.DiscNumber == discNumber

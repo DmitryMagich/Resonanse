@@ -1,20 +1,28 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Resonanse.Application.Abstractions;
 using Resonanse.Application.Dtos;
 using Resonanse.Application.Services;
 
 namespace Resonanse.Api.Controllers;
 
+[Authorize(Roles = "Admin,User")]
 [ApiController]
 [Route("api/albums")]
 public class AlbumsController : ControllerBase
 {
     private readonly ILibraryQueryService _query;
     private readonly ILibraryEditService _edit;
+    private readonly ICoverStorage _coverStorage;
 
-    public AlbumsController(ILibraryQueryService query, ILibraryEditService edit)
+    public AlbumsController(
+        ILibraryQueryService query,
+        ILibraryEditService edit,
+        ICoverStorage coverStorage)
     {
         _query = query;
         _edit = edit;
+        _coverStorage = coverStorage;
     }
 
     [HttpGet]
@@ -53,6 +61,31 @@ public class AlbumsController : ControllerBase
         return album is null ? NotFound() : Ok(album);
     }
 
+    [AllowAnonymous]
+    [HttpGet("{id:guid}/cover")]
+    public async Task<IActionResult> GetCover(Guid id, CancellationToken ct)
+    {
+        var album = await _query.GetAlbumAsync(id, ct);
+        if (album is null || string.IsNullOrWhiteSpace(album.CoverPath))
+            return NotFound();
+
+        var fullPath = _coverStorage.GetFullPath(album.CoverPath);
+        if (!System.IO.File.Exists(fullPath))
+            return NotFound();
+
+        var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            _ => "application/octet-stream"
+        };
+
+        Response.Headers.CacheControl = "public, max-age=86400";
+        return PhysicalFile(fullPath, contentType);
+    }
+    
     [HttpPatch("{id:guid}")]
     public async Task<ActionResult<AlbumDto>> Patch(Guid id, [FromBody] UpdateAlbumRequest request, CancellationToken ct)
     {

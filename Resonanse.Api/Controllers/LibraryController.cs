@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Resonanse.Api.Startup;
 using Resonanse.Application.Services;
 
 namespace Resonanse.Api.Controllers;
 
+[Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/library")]
 public class LibraryController : ControllerBase

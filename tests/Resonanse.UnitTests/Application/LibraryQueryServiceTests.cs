@@ -102,6 +102,59 @@ public class LibraryQueryServiceTests
         Assert.Equal(artist.Id, result.Items[0].ArtistId);
     }
 
+    [Fact]
+    public async Task GetAlbumsAsync_NullYear_GoesLast_Desc()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var artist = new Artist { Name = "A" };
+        db.Artists.Add(artist);
+        db.Albums.AddRange(
+            new Album { Title = "WithYear2020", ArtistId = artist.Id, ReleaseYear = 2020 },
+            new Album { Title = "WithYear2022", ArtistId = artist.Id, ReleaseYear = 2022 },
+            new Album { Title = "NoYear", ArtistId = artist.Id, ReleaseYear = null }
+        );
+        db.SaveChanges();
+
+        var service = new LibraryQueryService(db);
+        var result = await service.GetAlbumsAsync(new AlbumQuery
+        {
+            Page = 1,
+            PageSize = 100,
+            SortBy = AlbumSortField.ReleaseYear,
+            SortDir = SortDirection.Desc
+        });
+
+        Assert.Equal("WithYear2022", result.Items[0].Title);
+        Assert.Equal("WithYear2020", result.Items[1].Title);
+        Assert.Equal("NoYear", result.Items[2].Title);
+    }
+
+    [Fact]
+    public async Task GetAlbumsAsync_HasCoverFalse_ReturnsOnlyWithoutCover()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var artist = new Artist { Name = "A" };
+        db.Artists.Add(artist);
+        db.Albums.AddRange(
+            new Album { Title = "WithCover", ArtistId = artist.Id, CoverPath = "/covers/a.jpg" },
+            new Album { Title = "NoCover", ArtistId = artist.Id, CoverPath = null }
+        );
+        db.SaveChanges();
+
+        var service = new LibraryQueryService(db);
+
+        var withCover = await service.GetAlbumsAsync(new AlbumQuery { HasCover = true });
+        var withoutCover = await service.GetAlbumsAsync(new AlbumQuery { HasCover = false });
+
+        Assert.Single(withCover.Items);
+        Assert.Equal("WithCover", withCover.Items[0].Title);
+
+        Assert.Single(withoutCover.Items);
+        Assert.Equal("NoCover", withoutCover.Items[0].Title);
+    }
+
     // ============================================================
     // ARTISTS
     // ============================================================

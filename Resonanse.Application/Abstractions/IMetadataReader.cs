@@ -5,4 +5,5 @@ namespace Resonanse.Application.Abstractions;
 public interface IMetadataReader
 {
     AudioMetadata? Read(string filePath);
+    CoverMetadata? ReadCover(string filePath);
 }

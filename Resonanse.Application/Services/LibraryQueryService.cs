@@ -13,6 +13,10 @@ public class LibraryQueryService : ILibraryQueryService
         _db = db;
     }
 
+    // ============================================================
+    // TRACKS
+    // ============================================================
+
     public async Task<PagedResult<TrackDto>> GetTracksAsync(TrackQuery query, CancellationToken ct = default)
     {
         var page = Math.Max(1, query.Page);
@@ -52,8 +56,12 @@ public class LibraryQueryService : ILibraryQueryService
         if (query.MinSampleRate.HasValue)
             q = q.Where(t => t.Files.Any(f => f.SampleRate >= query.MinSampleRate.Value));
 
-        if (query.HasCover == true)
-            q = q.Where(t => t.Album.CoverPath != null);
+        if (query.HasCover.HasValue)
+        {
+            q = query.HasCover.Value
+                ? q.Where(t => t.Album.CoverPath != null)
+                : q.Where(t => t.Album.CoverPath == null);
+        }
 
         q = ApplyTrackSort(q, query.SortBy, query.SortDir);
 
@@ -144,8 +152,12 @@ public class LibraryQueryService : ILibraryQueryService
         if (query.YearTo.HasValue)
             q = q.Where(a => a.ReleaseYear <= query.YearTo.Value);
 
-        if (query.HasCover == true)
-            q = q.Where(a => a.CoverPath != null);
+        if (query.HasCover.HasValue)
+        {
+            q = query.HasCover.Value
+                ? q.Where(a => a.CoverPath != null)
+                : q.Where(a => a.CoverPath == null);
+        }
 
         q = ApplyAlbumSort(q, query.SortBy, query.SortDir);
 
@@ -407,9 +419,14 @@ public class LibraryQueryService : ILibraryQueryService
                 ? q.OrderByDescending(a => a.Artist.Name).ThenBy(a => a.Title)
                 : q.OrderBy(a => a.Artist.Name).ThenBy(a => a.Title),
 
+            // NULLS LAST — альбомы без года всегда в конце
             AlbumSortField.ReleaseYear => desc
-                ? q.OrderByDescending(a => a.ReleaseYear).ThenBy(a => a.Title)
-                : q.OrderBy(a => a.ReleaseYear).ThenBy(a => a.Title),
+                ? q.OrderBy(a => a.ReleaseYear == null)
+                   .ThenByDescending(a => a.ReleaseYear)
+                   .ThenBy(a => a.Title)
+                : q.OrderBy(a => a.ReleaseYear == null)
+                   .ThenBy(a => a.ReleaseYear)
+                   .ThenBy(a => a.Title),
 
             AlbumSortField.TrackCount => desc
                 ? q.OrderByDescending(a => a.Tracks.Count).ThenBy(a => a.Title)

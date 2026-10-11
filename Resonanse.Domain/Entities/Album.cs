@@ -3,6 +3,7 @@ namespace Resonanse.Domain.Entities;
 public class Album : BaseEntity
 {
     public string Title { get; set; } = string.Empty;
+    public bool IsTestAlbum { get; set; } = false;
     public int? ReleaseYear { get; set; }
     public string? CoverPath { get; set; }
     public Guid ArtistId { get; set; }

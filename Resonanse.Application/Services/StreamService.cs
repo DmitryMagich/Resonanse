@@ -22,6 +22,7 @@ public class StreamService : IStreamService
             .Select(f => new
             {
                 f.Id,
+                f.TrackId,
                 f.FilePath,
                 f.Format,
                 f.FileSize,
@@ -35,6 +36,7 @@ public class StreamService : IStreamService
         return new StreamInfoDto
         {
             TrackFileId = file.Id,
+            TrackId = file.TrackId,
             FilePath = file.FilePath,
             ContentType = GetContentType(file.Format),
             FileSize = file.FileSize,
@@ -50,6 +52,7 @@ public class StreamService : IStreamService
             .Select(f => new
             {
                 f.Id,
+                f.TrackId,
                 f.FilePath,
                 f.Format,
                 f.FileSize,
@@ -62,16 +65,14 @@ public class StreamService : IStreamService
         var existing = files.Where(f => File.Exists(f.FilePath)).ToList();
         if (existing.Count == 0) return null;
 
-        // Если указан конкретный формат — берём его
         if (!string.IsNullOrWhiteSpace(preferredFormat)
             && Enum.TryParse<AudioFormat>(preferredFormat, ignoreCase: true, out var wantedFormat))
         {
             var match = existing.FirstOrDefault(f => f.Format == wantedFormat);
             if (match is not null)
-                return ToDto(match.Id, match.FilePath, match.Format, match.FileSize, match.FileHash);
+                return ToDto(match.Id, match.TrackId, match.FilePath, match.Format, match.FileSize, match.FileHash);
         }
 
-        // Иначе — по приоритету качества
         var priority = new[]
         {
             AudioFormat.Flac,
@@ -90,16 +91,26 @@ public class StreamService : IStreamService
         {
             var match = existing.FirstOrDefault(f => f.Format == fmt);
             if (match is not null)
-                return ToDto(match.Id, match.FilePath, match.Format, match.FileSize, match.FileHash);
+                return ToDto(match.Id, match.TrackId, match.FilePath, match.Format, match.FileSize, match.FileHash);
         }
 
         var fallback = existing[0];
-        return ToDto(fallback.Id, fallback.FilePath, fallback.Format, fallback.FileSize, fallback.FileHash);
+        return ToDto(fallback.Id, fallback.TrackId, fallback.FilePath, fallback.Format, fallback.FileSize, fallback.FileHash);
     }
 
-    private static StreamInfoDto ToDto(Guid id, string path, AudioFormat format, long size, string hash) => new()
+    public async Task<bool> IsTrackInTestAlbumAsync(Guid trackId, CancellationToken ct = default)
+    {
+        return await _db.Tracks
+            .AsNoTracking()
+            .Where(t => t.Id == trackId)
+            .Select(t => t.Album.IsTestAlbum)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    private static StreamInfoDto ToDto(Guid id, Guid trackId, string path, AudioFormat format, long size, string hash) => new()
     {
         TrackFileId = id,
+        TrackId = trackId,
         FilePath = path,
         ContentType = GetContentType(format),
         FileSize = size,

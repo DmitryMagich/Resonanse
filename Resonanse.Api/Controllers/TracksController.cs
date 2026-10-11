@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Resonanse.Application.Dtos;
 using Resonanse.Application.Services;
 
 namespace Resonanse.Api.Controllers;
 
+[Authorize(Roles = "Admin,User")]
 [ApiController]
 [Route("api/tracks")]
 public class TracksController : ControllerBase

@@ -3,5 +3,6 @@ namespace Resonanse.Domain.Enums;
 public enum UserRole
 {
     User = 0,
-    Admin = 1
+    Admin = 1,
+    Guest = 2
 }

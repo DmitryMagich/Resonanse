@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Resonanse.Application.Abstractions;
 using Resonanse.Infrastructure.Auth;
+using Resonanse.Infrastructure.Covers;
 using Resonanse.Infrastructure.Hashing;
 using Resonanse.Infrastructure.Metadata;
 using Resonanse.Infrastructure.Persistence;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
         services.AddSingleton<IFileHasher, Blake3FileHasher>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddSingleton<ICoverStorage, FileSystemCoverStorage>();
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddSingleton<ITokenService, JwtTokenService>();

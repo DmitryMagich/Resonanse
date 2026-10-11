@@ -38,6 +38,11 @@ namespace Resonanse.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsTestAlbum")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<int?>("ReleaseYear")
                         .HasColumnType("integer");
 
@@ -52,6 +57,8 @@ namespace Resonanse.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ArtistId");
+
+                    b.HasIndex("IsTestAlbum");
 
                     b.HasIndex("Title");
 
@@ -128,6 +135,50 @@ namespace Resonanse.Infrastructure.Migrations
                     b.HasIndex("UsedByUserId");
 
                     b.ToTable("Invites", (string)null);
+                });
+
+            modelBuilder.Entity("Resonanse.Domain.Entities.InviteRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Contact")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ProcessedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("ProcessedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("InviteRequests", (string)null);
                 });
 
             modelBuilder.Entity("Resonanse.Domain.Entities.Peer", b =>
@@ -371,6 +422,16 @@ namespace Resonanse.Infrastructure.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("UsedBy");
+                });
+
+            modelBuilder.Entity("Resonanse.Domain.Entities.InviteRequest", b =>
+                {
+                    b.HasOne("Resonanse.Domain.Entities.User", "ProcessedBy")
+                        .WithMany()
+                        .HasForeignKey("ProcessedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ProcessedBy");
                 });
 
             modelBuilder.Entity("Resonanse.Domain.Entities.RefreshToken", b =>

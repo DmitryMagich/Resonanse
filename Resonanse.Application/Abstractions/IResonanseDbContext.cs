@@ -13,6 +13,7 @@ public interface IResonanseDbContext
     DbSet<User> Users { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Invite> Invites { get; }
+    DbSet<InviteRequest> InviteRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

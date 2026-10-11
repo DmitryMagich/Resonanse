@@ -43,8 +43,10 @@
       Resonanse__AutoScan__ScanOnStartup: "true"
       Resonanse__AutoScan__IntervalMinutes: "30"
       Resonanse__LibraryPath: "/music"
+      Resonanse__CoversPath: "/app/data/covers"
     volumes:
       - ${MUSIC_PATH:-./music}:/music:ro
+      - resonanse-covers:/app/data/covers
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 30s
@@ -54,3 +56,4 @@
 
 volumes:
   resonanse-pgdata:
+  resonanse-covers:
