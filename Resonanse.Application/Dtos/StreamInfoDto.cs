@@ -1,3 +1,5 @@
+using Resonanse.Domain.Enums;
+
 namespace Resonanse.Application.Dtos;
 
 public class StreamInfoDto
@@ -8,4 +10,6 @@ public class StreamInfoDto
     public string ContentType { get; set; } = "application/octet-stream";
     public long FileSize { get; set; }
     public string FileHash { get; set; } = string.Empty;
+    public TrackFileSource Source { get; set; }
+    public string? ExternalId { get; set; }
 }

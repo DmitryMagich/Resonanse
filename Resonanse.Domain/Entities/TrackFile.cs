@@ -3,31 +3,36 @@ using Resonanse.Domain.Enums;
 namespace Resonanse.Domain.Entities;
 
 /// <summary>
-/// Физический файл трека на конкретном узле.
-/// Один Track может иметь много TrackFile (разные форматы, качества, узлы).
+/// Represents a physical file of a track on a specific peer.
+/// A single track may have multiple files across peers and formats.
 /// </summary>
 public class TrackFile : BaseEntity
 {
-    // Связь с логическим треком
     public Guid TrackId { get; set; }
     public Track Track { get; set; } = null!;
 
-    // Связь с узлом-владельцем
     public Guid PeerId { get; set; }
     public Peer Peer { get; set; } = null!;
-    // Путь на диске узла
+
     public string FilePath { get; set; } = string.Empty;
+
     /// <summary>
-    /// BLAKE3-хэш файла (hex-строка). Основной идентификатор файла в P2P-сети.
+    /// BLAKE3 hash (hex) of the file contents. Primary identifier in P2P network.
     /// </summary>
     public string FileHash { get; set; } = string.Empty;
 
-    public long FileSize { get; set; } // в байтах
+    public long FileSize { get; set; }
 
-    // Аудио-характеристики
     public AudioFormat Format { get; set; } = AudioFormat.Unknown;
-    public int Bitrate { get; set; }     // kbps
-    public int SampleRate { get; set; }  // Hz
-    public int? BitDepth { get; set; }   // 16/24/32 для FLAC/WAV, null для MP3
-    public int Channels { get; set; }    // 1 = mono, 2 = stereo
+    public int Bitrate { get; set; }
+    public int SampleRate { get; set; }
+    public int? BitDepth { get; set; }
+    public int Channels { get; set; }
+
+    // P2P / external-source fields
+    public TrackFileSource Source { get; set; } = TrackFileSource.Local;
+    public string? ExternalId { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public bool IsPinnedByUser { get; set; }
+    public string? ExternalMetadataJson { get; set; }
 }

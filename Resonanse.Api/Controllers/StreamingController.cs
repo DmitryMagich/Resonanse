@@ -9,12 +9,12 @@ namespace Resonanse.Api.Controllers;
 [ApiController]
 [Route("api/stream")]
 [AllowAnonymous]
-public class StreamController : ControllerBase
+public class StreamingController : ControllerBase
 {
     private readonly IStreamService _streamService;
     private readonly ICurrentUser _currentUser;
 
-    public StreamController(IStreamService streamService, ICurrentUser currentUser)
+    public StreamingController(IStreamService streamService, ICurrentUser currentUser)
     {
         _streamService = streamService;
         _currentUser = currentUser;
@@ -28,6 +28,12 @@ public class StreamController : ControllerBase
 
         if (!await CanAccessAsync(info.TrackId, ct))
             return Forbid();
+
+        // Only local files are served directly for now.
+        // External sources (Archive/YouTube) will be proxied in later phases.
+        if (info.Source != TrackFileSource.Local)
+            return StatusCode(StatusCodes.Status501NotImplemented,
+                new { error = "External streaming not implemented yet.", source = info.Source.ToString() });
 
         return PhysicalFile(
             physicalPath: info.FilePath,
@@ -59,11 +65,9 @@ public class StreamController : ControllerBase
     {
         var role = _currentUser.Role;
 
-        // Admin и User — доступ ко всему
         if (role is UserRole.Admin or UserRole.User)
             return true;
 
-        // Guest и анонимы — только треки из тестового альбома
         return await _streamService.IsTrackInTestAlbumAsync(trackId, ct);
     }
 }

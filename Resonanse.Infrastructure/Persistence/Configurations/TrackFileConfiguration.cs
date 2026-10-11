@@ -20,9 +20,17 @@ public class TrackFileConfiguration : IEntityTypeConfiguration<TrackFile>
         builder.Property(f => f.BitDepth);
         builder.Property(f => f.Channels).IsRequired();
 
+        builder.Property(f => f.Source).HasConversion<int>().IsRequired().HasDefaultValue(Resonanse.Domain.Enums.TrackFileSource.Local);
+        builder.Property(f => f.ExternalId).HasMaxLength(500);
+        builder.Property(f => f.ExpiresAt);
+        builder.Property(f => f.IsPinnedByUser).HasDefaultValue(false);
+        builder.Property(f => f.ExternalMetadataJson).HasColumnType("text");
+
         builder.HasIndex(f => f.FileHash);
         builder.HasIndex(f => f.TrackId);
         builder.HasIndex(f => f.PeerId);
+        builder.HasIndex(f => f.Source);
+        builder.HasIndex(f => f.ExpiresAt);
         builder.HasIndex(f => new { f.PeerId, f.FilePath }).IsUnique();
         builder.HasIndex(f => new { f.TrackId, f.Format });
 

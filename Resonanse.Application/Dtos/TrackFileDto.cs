@@ -15,4 +15,9 @@ public class TrackFileDto
     public int Channels { get; set; }
     public long FileSize { get; set; }
     public string FileHash { get; set; } = string.Empty;
+    public TrackFileSource Source { get; set; }
+    public string SourceName => Source.ToString();
+    public string? ExternalId { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public bool IsPinnedByUser { get; set; }
 }

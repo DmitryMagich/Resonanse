@@ -26,12 +26,17 @@ public class StreamService : IStreamService
                 f.FilePath,
                 f.Format,
                 f.FileSize,
-                f.FileHash
+                f.FileHash,
+                f.Source,
+                f.ExternalId
             })
             .FirstOrDefaultAsync(ct);
 
         if (file is null) return null;
-        if (!File.Exists(file.FilePath)) return null;
+
+        // Only local files are read from disk. External (Archive/YouTube) go through their own resolvers.
+        if (file.Source == TrackFileSource.Local && !File.Exists(file.FilePath))
+            return null;
 
         return new StreamInfoDto
         {
@@ -40,7 +45,9 @@ public class StreamService : IStreamService
             FilePath = file.FilePath,
             ContentType = GetContentType(file.Format),
             FileSize = file.FileSize,
-            FileHash = file.FileHash
+            FileHash = file.FileHash,
+            Source = file.Source,
+            ExternalId = file.ExternalId
         };
     }
 
@@ -48,7 +55,7 @@ public class StreamService : IStreamService
     {
         var files = await _db.TrackFiles
             .AsNoTracking()
-            .Where(f => f.TrackId == trackId)
+            .Where(f => f.TrackId == trackId && f.Source == TrackFileSource.Local)
             .Select(f => new
             {
                 f.Id,
@@ -56,7 +63,9 @@ public class StreamService : IStreamService
                 f.FilePath,
                 f.Format,
                 f.FileSize,
-                f.FileHash
+                f.FileHash,
+                f.Source,
+                f.ExternalId
             })
             .ToListAsync(ct);
 
@@ -66,36 +75,19 @@ public class StreamService : IStreamService
         if (existing.Count == 0) return null;
 
         if (!string.IsNullOrWhiteSpace(preferredFormat)
-            && Enum.TryParse<AudioFormat>(preferredFormat, ignoreCase: true, out var wantedFormat))
+            && Enum.TryParse<AudioFormat>(preferredFormat, ignoreCase: true, out var wanted))
         {
-            var match = existing.FirstOrDefault(f => f.Format == wantedFormat);
-            if (match is not null)
-                return ToDto(match.Id, match.TrackId, match.FilePath, match.Format, match.FileSize, match.FileHash);
+            var match = existing.FirstOrDefault(f => f.Format == wanted);
+            if (match is not null) return ToDto(match);
         }
 
-        var priority = new[]
-        {
-            AudioFormat.Flac,
-            AudioFormat.Alac,
-            AudioFormat.Wav,
-            AudioFormat.Aiff,
-            AudioFormat.Dsd,
-            AudioFormat.Opus,
-            AudioFormat.Ogg,
-            AudioFormat.Aac,
-            AudioFormat.Mp3,
-            AudioFormat.Wma
-        };
-
-        foreach (var fmt in priority)
+        foreach (var fmt in TrackFormatHelper.Priority)
         {
             var match = existing.FirstOrDefault(f => f.Format == fmt);
-            if (match is not null)
-                return ToDto(match.Id, match.TrackId, match.FilePath, match.Format, match.FileSize, match.FileHash);
+            if (match is not null) return ToDto(match);
         }
 
-        var fallback = existing[0];
-        return ToDto(fallback.Id, fallback.TrackId, fallback.FilePath, fallback.Format, fallback.FileSize, fallback.FileHash);
+        return ToDto(existing[0]);
     }
 
     public async Task<bool> IsTrackInTestAlbumAsync(Guid trackId, CancellationToken ct = default)
@@ -107,14 +99,16 @@ public class StreamService : IStreamService
             .FirstOrDefaultAsync(ct);
     }
 
-    private static StreamInfoDto ToDto(Guid id, Guid trackId, string path, AudioFormat format, long size, string hash) => new()
+    private static StreamInfoDto ToDto(dynamic f) => new()
     {
-        TrackFileId = id,
-        TrackId = trackId,
-        FilePath = path,
-        ContentType = GetContentType(format),
-        FileSize = size,
-        FileHash = hash
+        TrackFileId = f.Id,
+        TrackId = f.TrackId,
+        FilePath = f.FilePath,
+        ContentType = GetContentType(f.Format),
+        FileSize = f.FileSize,
+        FileHash = f.FileHash,
+        Source = f.Source,
+        ExternalId = f.ExternalId
     };
 
     private static string GetContentType(AudioFormat format) => format switch

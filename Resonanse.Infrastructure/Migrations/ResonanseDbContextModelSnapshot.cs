@@ -458,6 +458,16 @@ namespace Resonanse.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ExternalMetadataJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("FileHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -474,11 +484,21 @@ namespace Resonanse.Infrastructure.Migrations
                     b.Property<int>("Format")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsPinnedByUser")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<Guid>("PeerId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("SampleRate")
                         .HasColumnType("integer");
+
+                    b.Property<int>("Source")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<Guid>("TrackId")
                         .HasColumnType("uuid");
@@ -488,9 +508,13 @@ namespace Resonanse.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExpiresAt");
+
                     b.HasIndex("FileHash");
 
                     b.HasIndex("PeerId");
+
+                    b.HasIndex("Source");
 
                     b.HasIndex("TrackId");
 

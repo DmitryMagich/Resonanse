@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Resonanse.Application.Abstractions;
 using Resonanse.Application.Dtos;
+using Resonanse.Domain.Enums;
 
 namespace Resonanse.Application.Services;
 
@@ -39,9 +40,7 @@ public class LibraryQueryService : ILibraryQueryService
         if (query.Formats is { Count: > 0 })
         {
             var parsed = query.Formats
-                .Select(f => Enum.TryParse<Resonanse.Domain.Enums.AudioFormat>(f, true, out var fmt)
-                    ? fmt
-                    : (Resonanse.Domain.Enums.AudioFormat?)null)
+                .Select(f => Enum.TryParse<AudioFormat>(f, true, out var fmt) ? fmt : (AudioFormat?)null)
                 .Where(f => f.HasValue)
                 .Select(f => f!.Value)
                 .ToList();
@@ -67,22 +66,42 @@ public class LibraryQueryService : ILibraryQueryService
 
         var total = await q.CountAsync(ct);
 
-        var items = await q
+        var raw = await q
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(t => new TrackDto
+            .Select(t => new
             {
-                Id = t.Id,
-                Title = t.Title,
-                Duration = t.Duration,
-                TrackNumber = t.TrackNumber,
-                DiscNumber = t.DiscNumber,
-                ArtistId = t.ArtistId,
+                t.Id,
+                t.Title,
+                t.Duration,
+                t.TrackNumber,
+                t.DiscNumber,
+                t.ArtistId,
                 ArtistName = t.Artist.Name,
-                AlbumId = t.AlbumId,
-                AlbumTitle = t.Album.Title
+                t.AlbumId,
+                AlbumTitle = t.Album.Title,
+                HasCover = t.Album.CoverPath != null,
+                Formats = t.Files.Select(f => f.Format).ToList(),
+                Sources = t.Files.Select(f => f.Source).ToList()
             })
             .ToListAsync(ct);
+
+        var items = raw.Select(t => new TrackDto
+        {
+            Id = t.Id,
+            Title = t.Title,
+            Duration = t.Duration,
+            TrackNumber = t.TrackNumber,
+            DiscNumber = t.DiscNumber,
+            ArtistId = t.ArtistId,
+            ArtistName = t.ArtistName,
+            AlbumId = t.AlbumId,
+            AlbumTitle = t.AlbumTitle,
+            HasCover = t.HasCover,
+            Formats = t.Formats.Select(f => f.ToString()).Distinct().ToList(),
+            BestFormat = TrackFormatHelper.PickBest(t.Formats)?.ToString(),
+            Source = PickPrimarySource(t.Sources)
+        }).ToList();
 
         return new PagedResult<TrackDto>
         {
@@ -95,20 +114,21 @@ public class LibraryQueryService : ILibraryQueryService
 
     public async Task<TrackDetailsDto?> GetTrackAsync(Guid id, CancellationToken ct = default)
     {
-        return await _db.Tracks
+        var raw = await _db.Tracks
             .AsNoTracking()
             .Where(t => t.Id == id)
-            .Select(t => new TrackDetailsDto
+            .Select(t => new
             {
-                Id = t.Id,
-                Title = t.Title,
-                Duration = t.Duration,
-                TrackNumber = t.TrackNumber,
-                DiscNumber = t.DiscNumber,
-                ArtistId = t.ArtistId,
+                t.Id,
+                t.Title,
+                t.Duration,
+                t.TrackNumber,
+                t.DiscNumber,
+                t.ArtistId,
                 ArtistName = t.Artist.Name,
-                AlbumId = t.AlbumId,
+                t.AlbumId,
                 AlbumTitle = t.Album.Title,
+                HasCover = t.Album.CoverPath != null,
                 Files = t.Files.Select(f => new TrackFileDto
                 {
                     Id = f.Id,
@@ -120,10 +140,34 @@ public class LibraryQueryService : ILibraryQueryService
                     BitDepth = f.BitDepth,
                     Channels = f.Channels,
                     FileSize = f.FileSize,
-                    FileHash = f.FileHash
+                    FileHash = f.FileHash,
+                    Source = f.Source,
+                    ExternalId = f.ExternalId,
+                    ExpiresAt = f.ExpiresAt,
+                    IsPinnedByUser = f.IsPinnedByUser
                 }).ToList()
             })
             .FirstOrDefaultAsync(ct);
+
+        if (raw is null) return null;
+
+        return new TrackDetailsDto
+        {
+            Id = raw.Id,
+            Title = raw.Title,
+            Duration = raw.Duration,
+            TrackNumber = raw.TrackNumber,
+            DiscNumber = raw.DiscNumber,
+            ArtistId = raw.ArtistId,
+            ArtistName = raw.ArtistName,
+            AlbumId = raw.AlbumId,
+            AlbumTitle = raw.AlbumTitle,
+            HasCover = raw.HasCover,
+            Formats = raw.Files.Select(f => f.Format.ToString()).Distinct().ToList(),
+            BestFormat = TrackFormatHelper.PickBest(raw.Files.Select(f => f.Format))?.ToString(),
+            Source = PickPrimarySource(raw.Files.Select(f => f.Source)),
+            Files = raw.Files
+        };
     }
 
     // ============================================================
@@ -189,36 +233,68 @@ public class LibraryQueryService : ILibraryQueryService
 
     public async Task<AlbumDetailsDto?> GetAlbumAsync(Guid id, CancellationToken ct = default)
     {
-        return await _db.Albums
+        var raw = await _db.Albums
             .AsNoTracking()
             .Where(a => a.Id == id)
-            .Select(a => new AlbumDetailsDto
+            .Select(a => new
             {
-                Id = a.Id,
-                Title = a.Title,
-                ReleaseYear = a.ReleaseYear,
-                CoverPath = a.CoverPath,
-                ArtistId = a.ArtistId,
+                a.Id,
+                a.Title,
+                a.ReleaseYear,
+                a.CoverPath,
+                a.ArtistId,
                 ArtistName = a.Artist.Name,
                 TrackCount = a.Tracks.Count,
                 Tracks = a.Tracks
                     .OrderBy(t => t.DiscNumber)
                     .ThenBy(t => t.TrackNumber)
-                    .Select(t => new TrackDto
+                    .Select(t => new
                     {
-                        Id = t.Id,
-                        Title = t.Title,
-                        Duration = t.Duration,
-                        TrackNumber = t.TrackNumber,
-                        DiscNumber = t.DiscNumber,
-                        ArtistId = t.ArtistId,
+                        t.Id,
+                        t.Title,
+                        t.Duration,
+                        t.TrackNumber,
+                        t.DiscNumber,
+                        t.ArtistId,
                         ArtistName = t.Artist.Name,
-                        AlbumId = t.AlbumId,
-                        AlbumTitle = t.Album.Title
+                        t.AlbumId,
+                        AlbumTitle = t.Album.Title,
+                        HasCover = t.Album.CoverPath != null,
+                        Formats = t.Files.Select(f => f.Format).ToList(),
+                        Sources = t.Files.Select(f => f.Source).ToList()
                     })
                     .ToList()
             })
             .FirstOrDefaultAsync(ct);
+
+        if (raw is null) return null;
+
+        return new AlbumDetailsDto
+        {
+            Id = raw.Id,
+            Title = raw.Title,
+            ReleaseYear = raw.ReleaseYear,
+            CoverPath = raw.CoverPath,
+            ArtistId = raw.ArtistId,
+            ArtistName = raw.ArtistName,
+            TrackCount = raw.TrackCount,
+            Tracks = raw.Tracks.Select(t => new TrackDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                Duration = t.Duration,
+                TrackNumber = t.TrackNumber,
+                DiscNumber = t.DiscNumber,
+                ArtistId = t.ArtistId,
+                ArtistName = t.ArtistName,
+                AlbumId = t.AlbumId,
+                AlbumTitle = t.AlbumTitle,
+                HasCover = t.HasCover,
+                Formats = t.Formats.Select(f => f.ToString()).Distinct().ToList(),
+                BestFormat = TrackFormatHelper.PickBest(t.Formats)?.ToString(),
+                Source = PickPrimarySource(t.Sources)
+            }).ToList()
+        };
     }
 
     // ============================================================
@@ -307,24 +383,44 @@ public class LibraryQueryService : ILibraryQueryService
         limit = Math.Clamp(limit, 1, 100);
         var s = query.Trim().ToLowerInvariant();
 
-        result.Tracks = await _db.Tracks
+        var rawTracks = await _db.Tracks
             .AsNoTracking()
             .Where(t => t.Title.ToLower().Contains(s))
             .OrderBy(t => t.Title)
             .Take(limit)
-            .Select(t => new TrackDto
+            .Select(t => new
             {
-                Id = t.Id,
-                Title = t.Title,
-                Duration = t.Duration,
-                TrackNumber = t.TrackNumber,
-                DiscNumber = t.DiscNumber,
-                ArtistId = t.ArtistId,
+                t.Id,
+                t.Title,
+                t.Duration,
+                t.TrackNumber,
+                t.DiscNumber,
+                t.ArtistId,
                 ArtistName = t.Artist.Name,
-                AlbumId = t.AlbumId,
-                AlbumTitle = t.Album.Title
+                t.AlbumId,
+                AlbumTitle = t.Album.Title,
+                HasCover = t.Album.CoverPath != null,
+                Formats = t.Files.Select(f => f.Format).ToList(),
+                Sources = t.Files.Select(f => f.Source).ToList()
             })
             .ToListAsync(ct);
+
+        result.Tracks = rawTracks.Select(t => new TrackDto
+        {
+            Id = t.Id,
+            Title = t.Title,
+            Duration = t.Duration,
+            TrackNumber = t.TrackNumber,
+            DiscNumber = t.DiscNumber,
+            ArtistId = t.ArtistId,
+            ArtistName = t.ArtistName,
+            AlbumId = t.AlbumId,
+            AlbumTitle = t.AlbumTitle,
+            HasCover = t.HasCover,
+            Formats = t.Formats.Select(f => f.ToString()).Distinct().ToList(),
+            BestFormat = TrackFormatHelper.PickBest(t.Formats)?.ToString(),
+            Source = PickPrimarySource(t.Sources)
+        }).ToList();
 
         result.Artists = await _db.Artists
             .AsNoTracking()
@@ -362,8 +458,18 @@ public class LibraryQueryService : ILibraryQueryService
     }
 
     // ============================================================
-    // SORT HELPERS
+    // HELPERS
     // ============================================================
+
+    private static string PickPrimarySource(IEnumerable<TrackFileSource> sources)
+    {
+        var set = sources.ToHashSet();
+        if (set.Contains(TrackFileSource.Local)) return "Local";
+        if (set.Contains(TrackFileSource.Peer)) return "Peer";
+        if (set.Contains(TrackFileSource.ArchiveOrg)) return "ArchiveOrg";
+        if (set.Contains(TrackFileSource.YouTube)) return "YouTube";
+        return "Other";
+    }
 
     private static IQueryable<Resonanse.Domain.Entities.Track> ApplyTrackSort(
         IQueryable<Resonanse.Domain.Entities.Track> q,
@@ -419,14 +525,9 @@ public class LibraryQueryService : ILibraryQueryService
                 ? q.OrderByDescending(a => a.Artist.Name).ThenBy(a => a.Title)
                 : q.OrderBy(a => a.Artist.Name).ThenBy(a => a.Title),
 
-            // NULLS LAST — альбомы без года всегда в конце
             AlbumSortField.ReleaseYear => desc
-                ? q.OrderBy(a => a.ReleaseYear == null)
-                   .ThenByDescending(a => a.ReleaseYear)
-                   .ThenBy(a => a.Title)
-                : q.OrderBy(a => a.ReleaseYear == null)
-                   .ThenBy(a => a.ReleaseYear)
-                   .ThenBy(a => a.Title),
+                ? q.OrderBy(a => a.ReleaseYear == null).ThenByDescending(a => a.ReleaseYear).ThenBy(a => a.Title)
+                : q.OrderBy(a => a.ReleaseYear == null).ThenBy(a => a.ReleaseYear).ThenBy(a => a.Title),
 
             AlbumSortField.TrackCount => desc
                 ? q.OrderByDescending(a => a.Tracks.Count).ThenBy(a => a.Title)
