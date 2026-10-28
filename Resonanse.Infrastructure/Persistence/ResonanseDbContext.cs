@@ -22,6 +22,7 @@ public class ResonanseDbContext : DbContext, IResonanseDbContext
     public DbSet<InviteRequest> InviteRequests => Set<InviteRequest>();
     public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
     public DbSet<ScanJob> ScanJobs => Set<ScanJob>();
+    public DbSet<UserFavorite> UserFavorites => Set<UserFavorite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

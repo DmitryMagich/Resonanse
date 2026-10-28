@@ -18,4 +18,5 @@ public class TrackDto
     public List<string> Formats { get; set; } = new();
     public string? BestFormat { get; set; }
     public string Source { get; set; } = "Local";
+    public bool IsFavorite { get; set; }
 }

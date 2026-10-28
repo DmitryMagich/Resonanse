@@ -8,11 +8,15 @@ namespace Resonanse.Application.Services;
 public class LibraryQueryService : ILibraryQueryService
 {
     private readonly IResonanseDbContext _db;
+    private readonly ICurrentUser _currentUser; 
 
-    public LibraryQueryService(IResonanseDbContext db)
+    public LibraryQueryService(IResonanseDbContext db, ICurrentUser currentUser) // blya
     {
         _db = db;
+        _currentUser = currentUser;
     }
+
+
 
     // ============================================================
     // TRACKS

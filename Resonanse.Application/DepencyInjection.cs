@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<ICoverService, CoverService>();
         services.AddScoped<IErrorLogService, ErrorLogService>();
         services.AddScoped<IScanJobService, ScanJobService>();
+        services.AddScoped<IFavoriteService, FavoriteService>();
         return services;
     }
 }

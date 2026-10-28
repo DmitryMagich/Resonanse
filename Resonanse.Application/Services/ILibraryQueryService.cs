@@ -10,5 +10,6 @@ public interface ILibraryQueryService
     Task<AlbumDetailsDto?> GetAlbumAsync(Guid id, CancellationToken ct = default);
     Task<PagedResult<ArtistDto>> GetArtistsAsync(ArtistQuery query, CancellationToken ct = default);
     Task<ArtistDetailsDto?> GetArtistAsync(Guid id, CancellationToken ct = default);
+    Task<PagedResult<TrackDto>> GetFavoritesAsync(int page, int pageSize, CancellationToken ct = default);
     Task<SearchResultDto> SearchAsync(string query, int limit, CancellationToken ct = default);
 }

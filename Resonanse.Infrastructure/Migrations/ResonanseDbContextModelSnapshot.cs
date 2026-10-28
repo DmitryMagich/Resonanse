@@ -581,6 +581,34 @@ namespace Resonanse.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Resonanse.Domain.Entities.UserFavorite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TrackId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrackId");
+
+                    b.HasIndex("UserId", "TrackId")
+                        .IsUnique();
+
+                    b.ToTable("UserFavorites", (string)null);
+                });
+
             modelBuilder.Entity("Resonanse.Domain.Entities.Album", b =>
                 {
                     b.HasOne("Resonanse.Domain.Entities.Artist", "Artist")
@@ -677,6 +705,25 @@ namespace Resonanse.Infrastructure.Migrations
                     b.Navigation("Peer");
 
                     b.Navigation("Track");
+                });
+
+            modelBuilder.Entity("Resonanse.Domain.Entities.UserFavorite", b =>
+                {
+                    b.HasOne("Resonanse.Domain.Entities.Track", "Track")
+                        .WithMany()
+                        .HasForeignKey("TrackId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Resonanse.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Track");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Resonanse.Domain.Entities.Album", b =>
