@@ -64,8 +64,7 @@ builder.Services
         var o = jwt.Value;
 
         if (string.IsNullOrWhiteSpace(o.SigningKey) || o.SigningKey.Length < 32)
-            throw new InvalidOperationException(
-                "Resonanse:Jwt:SigningKey must be set in configuration (min 32 characters).");
+            throw new InvalidOperationException("Resonanse:Jwt:SigningKey must be set (min 32 characters).");
 
         bearer.TokenValidationParameters = new TokenValidationParameters
         {
@@ -77,6 +76,19 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(o.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        bearer.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/api/stream"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 

@@ -22,8 +22,11 @@ public class LibraryQueryService : ILibraryQueryService
     {
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 200);
+        var allowedSources = TrackSourceFilter.AllowedSources(query.Mode);
 
         var q = _db.Tracks.AsNoTracking().AsQueryable();
+        
+        q = q.Where(t => t.Files.Any(f => allowedSources.Contains(f.Source)));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -81,8 +84,8 @@ public class LibraryQueryService : ILibraryQueryService
                 t.AlbumId,
                 AlbumTitle = t.Album.Title,
                 HasCover = t.Album.CoverPath != null,
-                Formats = t.Files.Select(f => f.Format).ToList(),
-                Sources = t.Files.Select(f => f.Source).ToList()
+                Formats = t.Files.Where(f => allowedSources.Contains(f.Source)).Select(f => f.Format).ToList(),
+                Sources = t.Files.Where(f => allowedSources.Contains(f.Source)).Select(f => f.Source).ToList()
             })
             .ToListAsync(ct);
 
@@ -178,8 +181,11 @@ public class LibraryQueryService : ILibraryQueryService
     {
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 200);
+        var allowedSources = TrackSourceFilter.AllowedSources(query.Mode);
 
         var q = _db.Albums.AsNoTracking().AsQueryable();
+
+        q = q.Where(a => a.Tracks.Any(t => t.Files.Any(f => allowedSources.Contains(f.Source))));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -218,7 +224,7 @@ public class LibraryQueryService : ILibraryQueryService
                 CoverPath = a.CoverPath,
                 ArtistId = a.ArtistId,
                 ArtistName = a.Artist.Name,
-                TrackCount = a.Tracks.Count
+                TrackCount = a.Tracks.Count(t => t.Files.Any(f => allowedSources.Contains(f.Source)))
             })
             .ToListAsync(ct);
 
@@ -305,8 +311,11 @@ public class LibraryQueryService : ILibraryQueryService
     {
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 200);
+        var allowedSources = TrackSourceFilter.AllowedSources(query.Mode);
 
         var q = _db.Artists.AsNoTracking().AsQueryable();
+
+        q = q.Where(a => a.Tracks.Any(t => t.Files.Any(f => allowedSources.Contains(f.Source))));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -326,8 +335,8 @@ public class LibraryQueryService : ILibraryQueryService
                 Id = a.Id,
                 Name = a.Name,
                 ImagePath = a.ImagePath,
-                AlbumCount = a.Albums.Count,
-                TrackCount = a.Tracks.Count
+                AlbumCount = a.Albums.Count(al => al.Tracks.Any(t => t.Files.Any(f => allowedSources.Contains(f.Source)))),
+                TrackCount = a.Tracks.Count(t => t.Files.Any(f => allowedSources.Contains(f.Source)))
             })
             .ToListAsync(ct);
 
@@ -383,9 +392,12 @@ public class LibraryQueryService : ILibraryQueryService
         limit = Math.Clamp(limit, 1, 100);
         var s = query.Trim().ToLowerInvariant();
 
+        var allowedSources = TrackSourceFilter.AllowedSources(ResonanceMode.Offline);
+
         var rawTracks = await _db.Tracks
             .AsNoTracking()
             .Where(t => t.Title.ToLower().Contains(s))
+            .Where(t => t.Files.Any(f => allowedSources.Contains(f.Source)))
             .OrderBy(t => t.Title)
             .Take(limit)
             .Select(t => new
@@ -425,6 +437,7 @@ public class LibraryQueryService : ILibraryQueryService
         result.Artists = await _db.Artists
             .AsNoTracking()
             .Where(a => a.Name.ToLower().Contains(s))
+            .Where(a => a.Tracks.Any(t => t.Files.Any(f => allowedSources.Contains(f.Source))))
             .OrderBy(a => a.Name)
             .Take(limit)
             .Select(a => new ArtistDto
@@ -440,6 +453,7 @@ public class LibraryQueryService : ILibraryQueryService
         result.Albums = await _db.Albums
             .AsNoTracking()
             .Where(a => a.Title.ToLower().Contains(s))
+            .Where(a => a.Tracks.Any(t => t.Files.Any(f => allowedSources.Contains(f.Source))))
             .OrderBy(a => a.Title)
             .Take(limit)
             .Select(a => new AlbumDto

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Resonanse.Application.Dtos;
 using Resonanse.Application.Services;
+using Resonanse.Domain.Enums;
 
 namespace Resonanse.Api.Controllers;
 
@@ -32,6 +33,7 @@ public class TracksController : ControllerBase
         [FromQuery] int? minBitDepth = null,
         [FromQuery] int? minSampleRate = null,
         [FromQuery] bool? hasCover = null,
+        [FromQuery] ResonanceMode mode = ResonanceMode.Offline,
         CancellationToken ct = default)
     {
         var query = new TrackQuery
@@ -46,7 +48,8 @@ public class TracksController : ControllerBase
             Formats = formats?.ToList(),
             MinBitDepth = minBitDepth,
             MinSampleRate = minSampleRate,
-            HasCover = hasCover
+            HasCover = hasCover,
+            Mode = mode
         };
 
         return Ok(await _query.GetTracksAsync(query, ct));

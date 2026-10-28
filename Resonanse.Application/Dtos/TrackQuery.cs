@@ -1,3 +1,5 @@
+using Resonanse.Domain.Enums;
+
 namespace Resonanse.Application.Dtos;
 
 public class TrackQuery
@@ -15,4 +17,7 @@ public class TrackQuery
     public int? MinBitDepth { get; set; }        // 16, 24, 32
     public int? MinSampleRate { get; set; }      // 44100, 96000, 192000
     public bool? HasCover { get; set; }
+
+    public ResonanceMode Mode { get; set; } = ResonanceMode.Offline;
+
 }
