@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    /* Установили тёмно-серый, как у Spotify */
+    background-color: #121212;
+    @apply text-neutral-100 font-sans antialiased;
+  }
+
+  /* Offline: Purple */
+  [data-mode="offline"] {
+    --accent-primary: #a855f7;
+    --accent-secondary: #c084fc;
+    --accent-gradient: linear-gradient(135deg, #a855f7 0%, #c084fc 100%);
+    --accent-glow: rgba(168, 85, 247, 0.35);
+  }
+
+  /* Online: Orange */
+  [data-mode="online"] {
+    --accent-primary: #f97316;
+    --accent-secondary: #fb923c;
+    --accent-gradient: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    --accent-glow: rgba(249, 115, 22, 0.35);
+  }
+
+  /* Resonance: Emerald */
+  [data-mode="resonance"] {
+    --accent-primary: #10b981;
+    --accent-secondary: #34d399;
+    --accent-gradient: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    --accent-glow: rgba(16, 185, 129, 0.35);
+  }
+}
+
+@layer utilities {
+  .text-accent {
+    color: var(--accent-primary);
+  }
+
+  .bg-accent {
+    background: var(--accent-primary);
+  }
+
+  .bg-gradient-accent {
+    background: var(--accent-gradient);
+  }
+
+  .border-accent {
+    border-color: var(--accent-primary);
+  }
+}
+
+/* Анимации для кнопок и появления */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-top-1 {
+  from { transform: translateY(-4px); }
+  to { transform: translateY(0); }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.slide-in-from-top-1 {
+  animation-name: slide-in-from-top-1;
+}
+/* Кастомные ползунки для плеера */
+.custom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #4d4d4d; /* Цвет незаполненной части */
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.1s;
+}
+
+.custom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  opacity: 0; /* Скрыт по умолчанию */
+  transition: opacity 0.2s;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+/* Показываем ползунок при наведении на трек или на сам ползунок */
+.custom-range:hover::-webkit-slider-thumb,
+.custom-range:active::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+.custom-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.custom-range:hover::-moz-range-thumb,
+.custom-range:active::-moz-range-thumb {
+  opacity: 1;
+}
