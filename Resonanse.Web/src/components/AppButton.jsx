@@ -26,7 +26,7 @@ export default function AppButton({
             className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
             {...props}
         >
-            {}  
+            {} 
             {variant === 'gradient' && (
                 <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
             )}

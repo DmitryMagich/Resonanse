@@ -1,5 +1,3 @@
-using Resonanse.Domain.Enums;
-
 namespace Resonanse.Application.Dtos;
 
 public class AlbumQuery
@@ -14,8 +12,6 @@ public class AlbumQuery
     public int? YearFrom { get; set; }
     public int? YearTo { get; set; }
     public bool? HasCover { get; set; }
-    
-    public ResonanceMode Mode { get; set; } = ResonanceMode.Offline;
 }
 
 public enum AlbumSortField

@@ -1,5 +1,3 @@
-using Resonanse.Domain.Enums;
-
 namespace Resonanse.Application.Dtos;
 
 public class ArtistQuery
@@ -9,8 +7,6 @@ public class ArtistQuery
     public string? Search { get; set; }
     public ArtistSortField SortBy { get; set; } = ArtistSortField.Name;
     public SortDirection SortDir { get; set; } = SortDirection.Asc;
-    
-    public ResonanceMode Mode { get; set; } = ResonanceMode.Offline;
 }
 
 public enum ArtistSortField
