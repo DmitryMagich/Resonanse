@@ -25,6 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 
 COPY --from=build /app/publish .
 
+RUN mkdir -p /app/data/covers && chown -R app:app /app/data
+
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
