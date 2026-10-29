@@ -1,3 +1,4 @@
+using Resonanse.Application.Abstractions;
 using Resonanse.Application.Dtos;
 using Resonanse.Application.Services;
 using Resonanse.Domain.Entities;
@@ -10,6 +11,15 @@ namespace Resonanse.UnitTests.Application;
 
 public class LibraryQueryServiceTests
 {
+    // Заглушка для ICurrentUser
+    public class TestCurrentUser : ICurrentUser
+    {
+        public Guid? UserId { get; set; }
+        public string? Username => "test-user";
+        public UserRole? Role => UserRole.Admin;
+        public bool IsAuthenticated => true;
+    }
+
     // ============================================================
     // TRACKS
     // ============================================================
@@ -19,7 +29,7 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         SeedManyTracks(db, 25);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetTracksAsync(new TrackQuery { Page = 1, PageSize = 10 });
 
@@ -34,7 +44,7 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         SeedManyTracks(db, 25);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetTracksAsync(new TrackQuery { Page = 3, PageSize = 10 });
 
@@ -46,11 +56,11 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         SeedManyTracks(db, 10);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetTracksAsync(new TrackQuery { Page = 1, PageSize = 100, Search = "Track 1" });
 
-        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(2, result.TotalCount); // "Track 1", "Track 10"
     }
 
     [Fact]
@@ -58,7 +68,7 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         var (_, _, track) = SeedBasic(db);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetTrackAsync(track.Id);
 
@@ -71,7 +81,7 @@ public class LibraryQueryServiceTests
     public async Task GetTrackAsync_Nonexistent_ReturnsNull()
     {
         using var db = TestDbContextFactory.Create();
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetTrackAsync(Guid.NewGuid());
 
@@ -94,7 +104,7 @@ public class LibraryQueryServiceTests
         db.Albums.Add(otherAlbum);
         db.SaveChanges();
 
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetAlbumsAsync(new AlbumQuery { Page = 1, PageSize = 100, ArtistId = artist.Id });
 
@@ -116,7 +126,7 @@ public class LibraryQueryServiceTests
         );
         db.SaveChanges();
 
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
         var result = await service.GetAlbumsAsync(new AlbumQuery
         {
             Page = 1,
@@ -143,7 +153,7 @@ public class LibraryQueryServiceTests
         );
         db.SaveChanges();
 
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var withCover = await service.GetAlbumsAsync(new AlbumQuery { HasCover = true });
         var withoutCover = await service.GetAlbumsAsync(new AlbumQuery { HasCover = false });
@@ -164,7 +174,7 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         SeedBasic(db);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.GetArtistsAsync(new ArtistQuery { Page = 1, PageSize = 100 });
 
@@ -182,7 +192,7 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         SeedBasic(db);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.SearchAsync("Test", limit: 10);
 
@@ -196,7 +206,7 @@ public class LibraryQueryServiceTests
     {
         using var db = TestDbContextFactory.Create();
         SeedBasic(db);
-        var service = new LibraryQueryService(db);
+        var service = new LibraryQueryService(db, new TestCurrentUser());
 
         var result = await service.SearchAsync("", limit: 10);
 

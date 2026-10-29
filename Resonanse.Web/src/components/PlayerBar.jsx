@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Music, ListMusic, AlertCircle } from 'lucide-react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useAuthStore } from '../stores/authStore'
+import FavoriteButton from './FavoriteButton'   
 
 export default function PlayerBar() {
     const audioRef = useRef(null)
@@ -184,14 +185,25 @@ export default function PlayerBar() {
                 </div>
             )}
 
-            {/* Инфо о треке */}
+            {/* Инфо о треке (Левая часть) */}
             <div className="flex items-center gap-4 w-[30%] min-w-[180px]">
                 <div className="w-14 h-14 bg-neutral-800 rounded-md flex items-center justify-center text-neutral-500 shadow-md">
                     <Music size={24} />
                 </div>
                 <div className="min-w-0 flex flex-col justify-center">
-                    <p className="text-sm font-semibold text-white truncate">{currentTrack.title}</p>
-                    <p className="text-xs text-neutral-400 truncate mt-0.5">{currentTrack.artistName}</p>
+                    <p className="text-sm font-semibold text-white truncate hover:underline cursor-pointer">
+                        {currentTrack.title}
+                    </p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                        <p className="text-xs text-neutral-400 truncate hover:underline cursor-pointer">
+                            {currentTrack.artistName}
+                        </p>
+                        <FavoriteButton
+                            trackId={currentTrack.id}
+                            initialIsFavorite={currentTrack.isFavorite}
+                            size={14}
+                        />
+                    </div>
                     {playbackError && (
                         <p className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
                             <AlertCircle size={12} /> {playbackError}
