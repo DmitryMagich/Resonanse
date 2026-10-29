@@ -10,14 +10,11 @@ public class LibraryQueryService : ILibraryQueryService
     private readonly IResonanseDbContext _db;
     private readonly ICurrentUser _currentUser; 
 
-    public LibraryQueryService(IResonanseDbContext db, ICurrentUser currentUser) // blya
+    public LibraryQueryService(IResonanseDbContext db, ICurrentUser currentUser)
     {
         _db = db;
         _currentUser = currentUser;
     }
-
-
-
     // ============================================================
     // TRACKS
     // ============================================================
@@ -26,6 +23,7 @@ public class LibraryQueryService : ILibraryQueryService
     {
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 200);
+        var userId = _currentUser.UserId;
 
         var q = _db.Tracks.AsNoTracking().AsQueryable();
 
@@ -86,7 +84,9 @@ public class LibraryQueryService : ILibraryQueryService
                 AlbumTitle = t.Album.Title,
                 HasCover = t.Album.CoverPath != null,
                 Formats = t.Files.Select(f => f.Format).ToList(),
-                Sources = t.Files.Select(f => f.Source).ToList()
+                Sources = t.Files.Select(f => f.Source).ToList(),
+                // ВЫЧИСЛЕНИЕ ISFAVORITE
+                IsFavorite = userId.HasValue && _db.UserFavorites.Any(uf => uf.UserId == userId.Value && uf.TrackId == t.Id)
             })
             .ToListAsync(ct);
 
@@ -104,7 +104,8 @@ public class LibraryQueryService : ILibraryQueryService
             HasCover = t.HasCover,
             Formats = t.Formats.Select(f => f.ToString()).Distinct().ToList(),
             BestFormat = TrackFormatHelper.PickBest(t.Formats)?.ToString(),
-            Source = PickPrimarySource(t.Sources)
+            Source = PickPrimarySource(t.Sources),
+            IsFavorite = t.IsFavorite
         }).ToList();
 
         return new PagedResult<TrackDto>
@@ -118,6 +119,8 @@ public class LibraryQueryService : ILibraryQueryService
 
     public async Task<TrackDetailsDto?> GetTrackAsync(Guid id, CancellationToken ct = default)
     {
+        var userId = _currentUser.UserId;
+
         var raw = await _db.Tracks
             .AsNoTracking()
             .Where(t => t.Id == id)
@@ -133,6 +136,7 @@ public class LibraryQueryService : ILibraryQueryService
                 t.AlbumId,
                 AlbumTitle = t.Album.Title,
                 HasCover = t.Album.CoverPath != null,
+                IsFavorite = userId.HasValue && _db.UserFavorites.Any(uf => uf.UserId == userId.Value && uf.TrackId == t.Id),
                 Files = t.Files.Select(f => new TrackFileDto
                 {
                     Id = f.Id,
@@ -170,7 +174,61 @@ public class LibraryQueryService : ILibraryQueryService
             Formats = raw.Files.Select(f => f.Format.ToString()).Distinct().ToList(),
             BestFormat = TrackFormatHelper.PickBest(raw.Files.Select(f => f.Format))?.ToString(),
             Source = PickPrimarySource(raw.Files.Select(f => f.Source)),
+            IsFavorite = raw.IsFavorite,
             Files = raw.Files
+        };
+    }
+
+    // ============================================================
+    // FAVORITES
+    // ============================================================
+
+    public async Task<PagedResult<TrackDto>> GetFavoritesAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var userId = _currentUser.UserId;
+        if (!userId.HasValue)
+            return new PagedResult<TrackDto> { Items = new(), TotalCount = 0 };
+
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var q = _db.UserFavorites
+            .AsNoTracking()
+            .Where(uf => uf.UserId == userId.Value)
+            .Select(uf => uf.Track)
+            .AsQueryable();
+
+        var total = await q.CountAsync(ct);
+
+        var items = await q
+            .OrderBy(t => t.Title)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(t => new TrackDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                Duration = t.Duration,
+                TrackNumber = t.TrackNumber,
+                DiscNumber = t.DiscNumber,
+                ArtistId = t.ArtistId,
+                ArtistName = t.Artist.Name,
+                AlbumId = t.AlbumId,
+                AlbumTitle = t.Album.Title,
+                HasCover = t.Album.CoverPath != null,
+                Formats = t.Files.Select(f => f.Format.ToString()).Distinct().ToList(),
+                BestFormat = t.Files.OrderByDescending(f => f.BitDepth).Select(f => f.Format.ToString()).FirstOrDefault(),
+                Source = "Local",
+                IsFavorite = true // Мы точно знаем, что они любимые
+            })
+            .ToListAsync(ct);
+
+        return new PagedResult<TrackDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total
         };
     }
 
@@ -237,6 +295,8 @@ public class LibraryQueryService : ILibraryQueryService
 
     public async Task<AlbumDetailsDto?> GetAlbumAsync(Guid id, CancellationToken ct = default)
     {
+        var userId = _currentUser.UserId;
+
         var raw = await _db.Albums
             .AsNoTracking()
             .Where(a => a.Id == id)
@@ -265,7 +325,8 @@ public class LibraryQueryService : ILibraryQueryService
                         AlbumTitle = t.Album.Title,
                         HasCover = t.Album.CoverPath != null,
                         Formats = t.Files.Select(f => f.Format).ToList(),
-                        Sources = t.Files.Select(f => f.Source).ToList()
+                        Sources = t.Files.Select(f => f.Source).ToList(),
+                        IsFavorite = userId.HasValue && _db.UserFavorites.Any(uf => uf.UserId == userId.Value && uf.TrackId == t.Id)
                     })
                     .ToList()
             })
@@ -296,7 +357,8 @@ public class LibraryQueryService : ILibraryQueryService
                 HasCover = t.HasCover,
                 Formats = t.Formats.Select(f => f.ToString()).Distinct().ToList(),
                 BestFormat = TrackFormatHelper.PickBest(t.Formats)?.ToString(),
-                Source = PickPrimarySource(t.Sources)
+                Source = PickPrimarySource(t.Sources),
+                IsFavorite = t.IsFavorite
             }).ToList()
         };
     }
@@ -386,6 +448,7 @@ public class LibraryQueryService : ILibraryQueryService
 
         limit = Math.Clamp(limit, 1, 100);
         var s = query.Trim().ToLowerInvariant();
+        var userId = _currentUser.UserId;
 
         var rawTracks = await _db.Tracks
             .AsNoTracking()
@@ -405,7 +468,8 @@ public class LibraryQueryService : ILibraryQueryService
                 AlbumTitle = t.Album.Title,
                 HasCover = t.Album.CoverPath != null,
                 Formats = t.Files.Select(f => f.Format).ToList(),
-                Sources = t.Files.Select(f => f.Source).ToList()
+                Sources = t.Files.Select(f => f.Source).ToList(),
+                IsFavorite = userId.HasValue && _db.UserFavorites.Any(uf => uf.UserId == userId.Value && uf.TrackId == t.Id)
             })
             .ToListAsync(ct);
 
@@ -423,7 +487,8 @@ public class LibraryQueryService : ILibraryQueryService
             HasCover = t.HasCover,
             Formats = t.Formats.Select(f => f.ToString()).Distinct().ToList(),
             BestFormat = TrackFormatHelper.PickBest(t.Formats)?.ToString(),
-            Source = PickPrimarySource(t.Sources)
+            Source = PickPrimarySource(t.Sources),
+            IsFavorite = t.IsFavorite
         }).ToList();
 
         result.Artists = await _db.Artists

@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import { Play, Music } from 'lucide-react'
 import AppInput from '../components/AppInput'
 import { usePlayerStore } from '../stores/playerStore'
+import FavoriteButton from '../components/FavoriteButton'
 
 export default function TracksPage() {
     const [tracks, setTracks] = useState([])
